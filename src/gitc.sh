@@ -1,11 +1,22 @@
 #!/bin/zsh
+# MIT License
+# 
+# Copyright (c) 2026 MrurBo
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
 setopt NULL_GLOB
 zmodload zsh/datetime
 ROOT_DIR=/var/www/cgi-bin/
 source ${ROOT_DIR}config
-GIT_BIN=/usr/bin/git
-CMARK_BIN=/usr/bin/cmark
-BASE=""
 
 typeset -F START_TIME=$EPOCHREALTIME
 
@@ -60,6 +71,8 @@ _walk() {
 }
 
 page_head() {
+  local rel=$1
+  local name=$2
   echo "<!DOCTYPE html>"
   echo "<html>"
   echo "<head>"
@@ -67,6 +80,7 @@ page_head() {
   echo "<style>"
   echo $(<${ROOT_DIR}style.css)
   echo "</style>"
+  echo "<title>$title - $rel | $name</title>"
   echo "</head>"
   echo "<body>"
 }
@@ -79,8 +93,8 @@ header() {
   local rel=$1
   local name=$2
   local erel=$(html_escape "$rel")
-  page_head
-  echo "<h1><a href=\"/$erel\">$erel</a> — $name</h1>"
+  page_head ${rel} ${name}
+  echo "<h1><a href=\"/$erel\">$erel</a> — $name</h1>" # e.g. MrurBo/test2 - commits
 }
 
 footer() {

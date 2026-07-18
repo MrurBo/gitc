@@ -1,5 +1,13 @@
 #!/bin/zsh
 
-NAME="gitc"
-GIT_REPOS_PATH=/repos
+# what to put in title.
+title="gitc"
+
+# prepend path to all routes. e.g. example.com/bar with base /foo will turn into example.com/foo/bar.
+BASE=""
+
+# dev options, dont touch unless you know what you're doing!
+GIT_REPOS_PATH=/repos    # repo path inside container
+GIT_BIN=/usr/bin/git     # bin of git
+CMARK_BIN=/usr/bin/cmark # bin of CMARK
 
