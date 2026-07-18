@@ -6,6 +6,9 @@ title="gitc"
 # prepend path to all routes. e.g. example.com/bar with base /foo will turn into example.com/foo/bar.
 BASE=""
 
+# maximum size a blob can be viewed at.
+MAX_BLOB_SIZE=1048576 # 1MB
+
 # dev options, dont touch unless you know what you're doing!
 GIT_REPOS_PATH=/repos              # repo path inside container
 GIT_BIN=/usr/bin/git               # bin of git
