@@ -12,8 +12,14 @@ MAX_BLOB_SIZE=1048576 # 1MB
 # enable http cloneing
 ENABLE_HTTP_CLONE=true
 
+# enable/disable syntax highlighting.
+CHROMA_ENABLED=true
+
+# list of styles found at https://github.com/alecthomas/chroma/tree/master/styles
+CHROMA_STYLE=catppuccin-mocha
+
 # dev options, dont touch unless you know what you're doing!
 GIT_REPOS_PATH=/repos              # repo path inside container
 GIT_BIN=/usr/bin/git               # bin of git
 CMARK_BIN=/usr/local/bin/cmark-gfm # bin of CMARK
-CHROMA_BIN=/usr/local/bin/chroma
+CHROMA_BIN=/usr/local/bin/chroma 

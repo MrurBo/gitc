@@ -327,7 +327,7 @@ render_blob() {
     *)
       local blob
       blob=$($GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null)
-      print -- $blob| render_code --html-inline-styles --html --html-only --html-linkable-lines --html-lines --style github-dark --lexer "${path##*.}"
+      print -- $blob| render_code --html-inline-styles --html --html-only --html-linkable-lines --html-lines --style ${CHROMA_STYLE} --lexer "${path##*.}"
       # html_escape "$blob"
       ;;  
   esac
