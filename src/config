@@ -9,6 +9,9 @@ BASE=""
 # maximum size a blob can be viewed at.
 MAX_BLOB_SIZE=1048576 # 1MB
 
+# enable http cloneing
+ENABLE_HTTP_CLONE=true
+
 # dev options, dont touch unless you know what you're doing!
 GIT_REPOS_PATH=/repos              # repo path inside container
 GIT_BIN=/usr/bin/git               # bin of git

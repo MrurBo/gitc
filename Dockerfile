@@ -10,7 +10,8 @@ RUN apk add --no-cache \
         fcgiwrap \
         spawn-fcgi \
         zsh \
-        git
+        git \
+        git-daemon
 
 RUN apk add --no-cache --virtual .build-deps build-base cmake git \
     && git clone --depth 1 https://github.com/github/cmark-gfm.git /tmp/cmark-gfm \

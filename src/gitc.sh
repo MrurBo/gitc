@@ -181,6 +181,10 @@ render_repo() {
   local rel=$1 dir=$2 ref=${3:-HEAD} bname=$4
   send_header
   header "$rel" "index$(ref_label "$bname")"
+  if [ "$ENABLE_HTTP_CLONE" = "true" ]; then
+    local clone_url="http://${HTTP_HOST}${BASE}/$(url_encode "$rel")"
+    echo "<small>Clone this repo: <code>git clone $(html_escape "$clone_url")</code></small>"
+  fi
   if [ -f "$dir/description" ]; then
     local desc
     desc=$(<"$dir/description")
@@ -425,7 +429,19 @@ route_branch() {
   esac
 }
 
+serve_git_http() {
+  export GIT_PROJECT_ROOT="$GIT_REPOS_PATH"
+  export GIT_HTTP_EXPORT_ALL=1
+  exec "$GIT_BIN" http-backend
+}
+
 route() {
+
+  if [[ "$PATH_INFO" == */info/refs && "$QUERY_STRING" == *service=git-upload-pack* && "$ENABLE_HTTP_CLONE" == "true" ]] || \
+     [[ "$PATH_INFO" == */git-upload-pack && "$REQUEST_METHOD" == "POST" ]]; then
+    serve_git_http
+  fi
+
   if [ ${#page} -eq 0 ]; then
     render_index
     return
