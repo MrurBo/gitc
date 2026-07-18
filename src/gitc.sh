@@ -230,10 +230,11 @@ render_blob() {
       ;;
     *)
       echo "<pre>"
-      $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null \
-        | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
+      local blob
+      blob=$($GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null)
+      html_escape "$blob"
       echo "</pre>"
-      ;;
+      ;;  
   esac
 
   footer "$rel"
