@@ -239,16 +239,51 @@ render_branches() {
 
 render_commits() {
   local rel=$1 dir=$2 ref=${3:-HEAD} bname=$4
+
+  local page_num=${QUERY_page:-1}
+  [[ "$page_num" =~ '^[0-9]+$' ]] || page_num=1
+  (( page_num < 1 )) && page_num=1
+
+  local per_page=10
+  local skip=$(( (page_num - 1) * per_page ))
+
   send_header
   header "$rel" "commits$(ref_label "$bname")"
+
   echo "<ul>"
   local hash subject author date
   local urel=$(url_encode "$rel")
-  $GIT_BIN -C "$dir" log -n 100 --format='%h%x1f%s%x1f%an%x1f%ar' "$ref" -- 2>/dev/null | \
+
+  $GIT_BIN -C "$dir" log \
+    --skip="$skip" \
+    -n "$per_page" \
+    --format='%h%x1f%s%x1f%an%x1f%ar' \
+    "$ref" -- 2>/dev/null | \
   while IFS=$'\x1f' read -r hash subject author date; do
     echo "<li><a href=\"$BASE/$urel/commit/$(url_encode "$hash")\"><code>$(html_escape "$hash")</code></a> — $(html_escape "$subject") <small>($(html_escape "$author"), $(html_escape "$date"))</small></li>"
   done
   echo "</ul>"
+
+  local total
+  total=$($GIT_BIN -C "$dir" rev-list --count "$ref" 2>/dev/null)
+
+  local base=$(ref_base "$rel" "$bname")
+  local prev=$((page_num - 1))
+  local next=$((page_num + 1))
+
+  echo "<nav>"
+
+  if (( page_num > 1 )); then
+    echo "<a href=\"$base/commits?page=$prev\">&laquo; Previous</a>"
+  fi
+
+  if (( total > page_num * per_page )); then
+    (( page_num > 1 )) && echo " | "
+    echo "<a href=\"$base/commits?page=$next\">Next &raquo;</a>"
+  fi
+
+  echo "</nav>"
+
   footer "$rel" 1 "$bname"
 }
 
