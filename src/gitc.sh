@@ -1,15 +1,15 @@
 #!/bin/zsh
 # MIT License
-# 
+#
 # Copyright (c) 2026 MrurBo
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 #
@@ -35,13 +35,44 @@ html_escape() {
   s=${s//</&lt;}
   s=${s//>/&gt;}
   s=${s//\"/&quot;}
+  s=${s//\'/&#39;}
   print -r -- "$s"
+}
+
+url_encode() {
+  local s=$1 out="" c i
+  for (( i = 1; i <= ${#s}; i++ )); do
+    c=$s[i]
+    case "$c" in
+      [A-Za-z0-9._~/-]) out+="$c" ;;
+      *) out+=$(printf '%%%02X' "'$c") ;;
+    esac
+  done
+  print -r -- "$out"
+}
+
+header_escape() {
+  print -r -- "${1//[$'\x00'-$'\x1f\x7f']/}"
+}
+
+validate_hash() {
+  [[ $1 =~ ^[0-9a-fA-F]{4,64}$ ]]
+}
+
+bad_segment() {
+  local s=$1
+  case "$s" in
+    *..*|*%*|*\\*) return 0 ;;
+  esac
+  [[ $s == *[$'\x00'-$'\x1f\x7f']* ]] && return 0
+  return 1
 }
 
 send_header() {
   local cache=${1:-"no-cache"}
   echo "Content-type: text/html; charset=utf-8"
   echo "Cache-Control: $cache"
+  echo "X-Content-Type-Options: nosniff"
   echo
 }
 
@@ -63,7 +94,7 @@ _walk() {
     if is_git_repo "$repo"; then
       rel=${repo#$GIT_REPOS_PATH/}
       rel=${rel%/}
-      echo "<li><a href=\"/$(html_escape "$rel")\">$(html_escape "$rel")</a></li>"
+      echo "<li><a href=\"/$(url_encode "$rel")\">$(html_escape "$rel")</a></li>"
     else
       _walk "$repo"
     fi
@@ -80,7 +111,7 @@ page_head() {
   echo "<style>"
   echo $(<${ROOT_DIR}style.css)
   echo "</style>"
-  echo "<title>$title - $rel | $name</title>"
+  echo "<title>$(html_escape "$title") - $(html_escape "$rel") | $(html_escape "$name")</title>"
   echo "</head>"
   echo "<body>"
 }
@@ -93,8 +124,9 @@ header() {
   local rel=$1
   local name=$2
   local erel=$(html_escape "$rel")
-  page_head ${rel} ${name}
-  echo "<h1><a href=\"/$erel\">$erel</a> — $name</h1>" # e.g. MrurBo/test2 - commits
+  local urel=$(url_encode "$rel")
+  page_head "$rel" "$name"
+  echo "<h1><a href=\"/$urel\">$erel</a> — $name</h1>"
 }
 
 footer() {
@@ -102,7 +134,7 @@ footer() {
   local nav=${2:-1}
   echo "<footer>"
   if [ "$nav" = "1" ]; then
-    navigation ${rel}
+    navigation "$rel"
   fi
   local elapsed
   elapsed=$(( EPOCHREALTIME - START_TIME ))
@@ -115,12 +147,12 @@ footer() {
 
 navigation() {
   local rel=$1
-  local erel=$(html_escape "$rel")
+  local urel=$(url_encode "$rel")
   echo "<nav>"
   echo "<a href=\"/\">index</a>"
-  echo " | <a href=\"/$erel\">summary</a>"
-  echo " | <a href=\"/$erel/commits\">commits</a>"
-  echo " | <a href=\"/$erel/tree\">tree</a>"
+  echo " | <a href=\"/$urel\">summary</a>"
+  echo " | <a href=\"/$urel/commits\">commits</a>"
+  echo " | <a href=\"/$urel/tree\">tree</a>"
   echo "</nav>"
 }
 
@@ -132,7 +164,7 @@ render_repo() {
   local rel=$1
   local dir="$GIT_REPOS_PATH/$rel"
   send_header
-  header ${rel} "index"
+  header "$rel" "index"
   if [ -f "$dir/description" ]; then
     local desc
     desc=$(<"$dir/description")
@@ -149,12 +181,13 @@ render_repo() {
     print -r -- "$content" | render_markdown /dev/stdin
   fi
   echo "</div>"
-  footer ${rel}
+  footer "$rel"
 }
 
 render_404() {
   echo "Status: 404 Not Found"
   echo "Content-type: text/html; charset=utf-8"
+  echo "X-Content-Type-Options: nosniff"
   echo
   echo "<!DOCTYPE html><html><body><h1>404 Not Found</h1></body></html>"
 }
@@ -162,45 +195,48 @@ render_404() {
 render_commits() {
   local rel=$1 dir=$2
   send_header
-  header ${rel} "commits"
+  header "$rel" "commits"
   echo "<ul>"
   local hash subject author date
+  local urel=$(url_encode "$rel")
   $GIT_BIN -C "$dir" log -n 100 --format='%h%x1f%s%x1f%an%x1f%ar' 2>/dev/null | \
   while IFS=$'\x1f' read -r hash subject author date; do
-    echo "<li><a href=\"$BASE/$(html_escape "$rel")/commit/$(html_escape "$hash")\"><code>$(html_escape "$hash")</code></a> — $(html_escape "$subject") <small>($(html_escape "$author"), $(html_escape "$date"))</small></li>"
+    echo "<li><a href=\"$BASE/$urel/commit/$(url_encode "$hash")\"><code>$(html_escape "$hash")</code></a> — $(html_escape "$subject") <small>($(html_escape "$author"), $(html_escape "$date"))</small></li>"
   done
   echo "</ul>"
-  footer "${rel}"
+  footer "$rel"
 }
 
 render_blob() {
-    local rel=$1 dir=$2 path=$3
-    send_header
-    header "${rel}" "$(html_escape "$path") | <a href=\"/$rel/raw/$path\">raw</a> | <a href=\"/$rel/download/$path\">download</a>"
+  local rel=$1 dir=$2 path=$3
+  send_header
+  local urel=$(url_encode "$rel")
+  local upath=$(url_encode "$path")
+  header "$rel" "$(html_escape "$path") | <a href=\"/$urel/raw/$upath\">raw</a> | <a href=\"/$urel/download/$upath\">download</a>"
 
-    local otype
-    otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
-    if [ "$otype" != "blob" ]; then
-        echo "<h2>404 Not Found</h2>"
-        footer "$rel"
-        return
-    fi
-
-    case "$path" in
-        *.md|*.markdown)
-            echo "<div class=\"md\">"
-            $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null | render_markdown /dev/stdin
-            echo "</div>"
-            ;;
-        *)
-            echo "<pre>"
-            $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null \
-                | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
-            echo "</pre>"
-            ;;
-    esac
-
+  local otype
+  otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
+  if [ "$otype" != "blob" ]; then
+    echo "<h2>404 Not Found</h2>"
     footer "$rel"
+    return
+  fi
+
+  case "$path" in
+    *.md|*.markdown)
+      echo "<div class=\"md\">"
+      $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null | render_markdown /dev/stdin
+      echo "</div>"
+      ;;
+    *)
+      echo "<pre>"
+      $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null \
+        | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g'
+      echo "</pre>"
+      ;;
+  esac
+
+  footer "$rel"
 }
 
 render_raw() {
@@ -211,8 +247,9 @@ render_raw() {
     render_404
     return
   fi
-  echo "Content-type: text/plain"
+  echo "Content-type: text/plain; charset=utf-8"
   echo "Cache-Control: no-cache"
+  echo "X-Content-Type-Options: nosniff"
   echo
   $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null
 }
@@ -226,9 +263,14 @@ render_download() {
     return
   fi
   local fname=${path##*/}
+  local clean=$(header_escape "$fname")
+  clean=${clean//\"/}
+  clean=${clean//\\/}
+  local fstar=$(url_encode "$fname")
   echo "Content-type: application/octet-stream"
-  echo "Content-Disposition: attachment; filename=\"$(html_escape "$fname")\""
+  echo "Content-Disposition: attachment; filename=\"$clean\"; filename*=UTF-8''$fstar"
   echo "Cache-Control: no-cache"
+  echo "X-Content-Type-Options: nosniff"
   echo
   $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null
 }
@@ -236,8 +278,8 @@ render_download() {
 render_tree() {
   local rel=$1 dir=$2 path=$3
   send_header
-  header ${rel} "tree /$(html_escape "$path")"
-  local erel=$(html_escape "$rel")
+  header "$rel" "tree /$(html_escape "$path")"
+  local urel=$(url_encode "$rel")
   echo "<ul>"
   local mode type obj name
   local ref="HEAD"
@@ -246,15 +288,15 @@ render_tree() {
   while read -r mode type obj name; do
     local full="$name"
     [ -n "$path" ] && full="$path/$name"
-    local efull=$(html_escape "$full")
     local ename=$(html_escape "$name")
+    local ufull=$(url_encode "$full")
     local url=""
     if [ "$type" = "tree" ]; then
-      url="/$erel/tree/$efull"
+      url="/$urel/tree/$ufull"
     else
-      url="/$erel/blob/$efull"
+      url="/$urel/blob/$ufull"
     fi
-    echo "<li><code>$(html_escape "$type")</code> <a class=\"$type\" href=\"$url\">$ename</a></li>"
+    echo "<li><code>$(html_escape "$type")</code> <a class=\"$(html_escape "$type")\" href=\"$url\">$ename</a></li>"
   done
   echo "</ul>"
   footer "$rel"
@@ -262,10 +304,14 @@ render_tree() {
 
 render_commit() {
   local rel=$1 dir=$2 hash=$3
+  if ! validate_hash "$hash"; then
+    render_404
+    return
+  fi
   local line cls
   send_header
-  page_head
-  echo "<h1><a href=\"/$(html_escape "$rel")\">$(html_escape "$rel")</a> — commit $(html_escape "$hash")</h1>"
+  page_head "$rel" "commit"
+  echo "<h1><a href=\"/$(url_encode "$rel")\">$(html_escape "$rel")</a> — commit $(html_escape "$hash")</h1>"
   echo "<div class=\"diff\">"
   $GIT_BIN -C "$dir" show --no-color \
     --format='commit %H%nAuthor: %an <%ae>%nDate:   %ad%n%n    %s%n%n%b' \
@@ -298,9 +344,10 @@ route() {
 
   local seg
   for seg in "$page[@]"; do
-    case "$seg" in
-      *..*) render_404; return ;;
-    esac
+    if bad_segment "$seg"; then
+      render_404
+      return
+    fi
   done
 
   local i rel="" repo_rel="" split=0
@@ -321,13 +368,13 @@ route() {
   local dir="$GIT_REPOS_PATH/$repo_rel"
 
   case "$action[1]" in
-    ""|summary) render_repo    "$repo_rel" "$dir" ;;
-    commits)    render_commits "$repo_rel" "$dir" ;;
-    tree)       render_tree    "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
-    blob)       render_blob    "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
-    raw)        render_raw     "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
+    ""|summary) render_repo     "$repo_rel" "$dir" ;;
+    commits)    render_commits  "$repo_rel" "$dir" ;;
+    tree)       render_tree     "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
+    blob)       render_blob     "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
+    raw)        render_raw      "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
     download)   render_download "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
-    commit)     render_commit  "$repo_rel" "$dir" "$action[2]" ;;
+    commit)     render_commit   "$repo_rel" "$dir" "$action[2]" ;;
     *)          render_404 ;;
   esac
 }
@@ -337,4 +384,4 @@ main() {
   route
 }
 
-main b/test2/test
+main
