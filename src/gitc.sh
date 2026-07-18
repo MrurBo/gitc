@@ -24,9 +24,7 @@ page=(${(s:/:)PATH_INFO})
 
 is_git_repo() {
   local dir=$1
-  local result
-  result=$($GIT_BIN -C "$dir" rev-parse --is-bare-repository 2>/dev/null)
-  [ "$result" = "true" ]
+  [[ -f "$dir/HEAD" && -d "$dir/objects" && -d "$dir/refs" ]]
 }
 
 html_escape() {
@@ -109,7 +107,7 @@ page_head() {
   echo "<head>"
   echo "<meta charset=\"utf-8\">"
   echo "<style>"
-  echo $(<${ROOT_DIR}style.css)
+  echo "$(<${ROOT_DIR}style.css)"
   echo "</style>"
   echo "<title>$(html_escape "$title") - $(html_escape "$rel") | $(html_escape "$name")</title>"
   echo "</head>"
@@ -218,6 +216,15 @@ render_blob() {
   otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
   if [ "$otype" != "blob" ]; then
     echo "<h2>404 Not Found</h2>"
+    footer "$rel"
+    return
+  fi
+
+  # NEW: refuse to inline-render oversized blobs
+  local size
+  size=$($GIT_BIN -C "$dir" cat-file -s "HEAD:$path" 2>/dev/null)
+  if [ -z "$size" ] || [ "$size" -gt "$MAX_BLOB_SIZE" ]; then
+    echo "<p>File too large to display ($size bytes). <a href=\"/$urel/raw/$upath\">View raw</a> or <a href=\"/$urel/download/$upath\">download</a>.</p>"
     footer "$rel"
     return
   fi
@@ -365,6 +372,10 @@ route() {
     return
   fi
 
+  if [ "$($GIT_BIN -C "$GIT_REPOS_PATH/$repo_rel" rev-parse --is-bare-repository 2>/dev/null)" != "true" ]; then
+    render_404
+    return
+  fi
   local action=(${page[$((split+1)),-1]})
   local dir="$GIT_REPOS_PATH/$repo_rel"
 

@@ -23,7 +23,6 @@ chown "$APP_USER":"$APP_USER" "$SOCKET"
 chmod 0770 "$SOCKET"
 
 chmod 755 -R /repos
-chown -R "$APP_USER":"$APP_USER" /repos
 
 git config --system --add safe.directory "*"
 
