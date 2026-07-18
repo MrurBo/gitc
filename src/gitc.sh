@@ -66,6 +66,22 @@ bad_segment() {
   return 1
 }
 
+# URL base for a repo view, optionally scoped to a branch.
+ref_base() {
+  local rel=$1 bname=$2
+  if [ -n "$bname" ]; then
+    print -r -- "/$(url_encode "$rel")/branch/$(url_encode "$bname")"
+  else
+    print -r -- "/$(url_encode "$rel")"
+  fi
+}
+
+# " @ branch" suffix for page titles (pre-escaped).
+ref_label() {
+  local bname=$1
+  [ -n "$bname" ] && print -r -- " @ $(html_escape "$bname")"
+}
+
 send_header() {
   local cache=${1:-"no-cache"}
   echo "Content-type: text/html; charset=utf-8"
@@ -130,9 +146,10 @@ header() {
 footer() {
   local rel=$1
   local nav=${2:-1}
+  local bname=$3
   echo "<footer>"
   if [ "$nav" = "1" ]; then
-    navigation "$rel"
+    navigation "$rel" "$bname"
   fi
   local elapsed
   elapsed=$(( EPOCHREALTIME - START_TIME ))
@@ -144,13 +161,15 @@ footer() {
 }
 
 navigation() {
-  local rel=$1
+  local rel=$1 bname=$2
   local urel=$(url_encode "$rel")
+  local base=$(ref_base "$rel" "$bname")
   echo "<nav>"
   echo "<a href=\"/\">index</a>"
-  echo " | <a href=\"/$urel\">summary</a>"
-  echo " | <a href=\"/$urel/commits\">commits</a>"
-  echo " | <a href=\"/$urel/tree\">tree</a>"
+  echo " | <a href=\"$base\">summary</a>"
+  echo " | <a href=\"$base/commits\">commits</a>"
+  echo " | <a href=\"$base/tree\">tree</a>"
+  echo " | <a href=\"/$urel/branches\">branches</a>"
   echo "</nav>"
 }
 
@@ -159,10 +178,9 @@ render_markdown() {
 }
 
 render_repo() {
-  local rel=$1
-  local dir="$GIT_REPOS_PATH/$rel"
+  local rel=$1 dir=$2 ref=${3:-HEAD} bname=$4
   send_header
-  header "$rel" "index"
+  header "$rel" "index$(ref_label "$bname")"
   if [ -f "$dir/description" ]; then
     local desc
     desc=$(<"$dir/description")
@@ -175,11 +193,11 @@ render_repo() {
   fi
   echo "<div class=\"md\">"
   local content
-  if content=$($GIT_BIN -C "$dir" show HEAD:README.md 2>/dev/null); then
+  if content=$($GIT_BIN -C "$dir" show "$ref:README.md" 2>/dev/null); then
     print -r -- "$content" | render_markdown /dev/stdin
   fi
   echo "</div>"
-  footer "$rel"
+  footer "$rel" 1 "$bname"
 }
 
 render_404() {
@@ -190,67 +208,92 @@ render_404() {
   echo "<!DOCTYPE html><html><body><h1>404 Not Found</h1></body></html>"
 }
 
-render_commits() {
+render_branches() {
   local rel=$1 dir=$2
   send_header
-  header "$rel" "commits"
-  echo "<ul>"
-  local hash subject author date
+  header "$rel" "branches"
   local urel=$(url_encode "$rel")
-  $GIT_BIN -C "$dir" log -n 100 --format='%h%x1f%s%x1f%an%x1f%ar' 2>/dev/null | \
-  while IFS=$'\x1f' read -r hash subject author date; do
-    echo "<li><a href=\"$BASE/$urel/commit/$(url_encode "$hash")\"><code>$(html_escape "$hash")</code></a> — $(html_escape "$subject") <small>($(html_escape "$author"), $(html_escape "$date"))</small></li>"
+  local head_branch
+  head_branch=$($GIT_BIN -C "$dir" symbolic-ref --short HEAD 2>/dev/null)
+  echo "<ul>"
+  local name hash subject date
+  # NB: for-each-ref hex escapes are written %1f (unlike git log's %x1f)
+  $GIT_BIN -C "$dir" for-each-ref refs/heads --sort=-committerdate \
+    --format='%(refname:short)%1f%(objectname:short)%1f%(subject)%1f%(committerdate:relative)' 2>/dev/null | \
+  while IFS=$'\x1f' read -r name hash subject date; do
+    local uname=$(url_encode "$name")
+    local marker=""
+    [ "$name" = "$head_branch" ] && marker=" <strong>(default)</strong>"
+    echo "<li><a href=\"/$urel/branch/$uname\">$(html_escape "$name")</a>$marker"
+    echo " — <a href=\"$BASE/$urel/commit/$(url_encode "$hash")\"><code>$(html_escape "$hash")</code></a>"
+    echo " $(html_escape "$subject") <small>($(html_escape "$date"))</small>"
+    echo " <small>[<a href=\"/$urel/branch/$uname/commits\">commits</a> | <a href=\"/$urel/branch/$uname/tree\">tree</a>]</small></li>"
   done
   echo "</ul>"
   footer "$rel"
 }
 
-render_blob() {
-  local rel=$1 dir=$2 path=$3
+render_commits() {
+  local rel=$1 dir=$2 ref=${3:-HEAD} bname=$4
   send_header
+  header "$rel" "commits$(ref_label "$bname")"
+  echo "<ul>"
+  local hash subject author date
   local urel=$(url_encode "$rel")
+  $GIT_BIN -C "$dir" log -n 100 --format='%h%x1f%s%x1f%an%x1f%ar' "$ref" -- 2>/dev/null | \
+  while IFS=$'\x1f' read -r hash subject author date; do
+    echo "<li><a href=\"$BASE/$urel/commit/$(url_encode "$hash")\"><code>$(html_escape "$hash")</code></a> — $(html_escape "$subject") <small>($(html_escape "$author"), $(html_escape "$date"))</small></li>"
+  done
+  echo "</ul>"
+  footer "$rel" 1 "$bname"
+}
+
+render_blob() {
+  local rel=$1 dir=$2 path=$3 ref=${4:-HEAD} bname=$5
+  send_header
+  local base=$(ref_base "$rel" "$bname")
   local upath=$(url_encode "$path")
-  header "$rel" "$(html_escape "$path") | <a href=\"/$urel/raw/$upath\">raw</a> | <a href=\"/$urel/download/$upath\">download</a>"
+  header "$rel" "$(html_escape "$path")$(ref_label "$bname") | <a href=\"$base/raw/$upath\">raw</a> | <a href=\"$base/download/$upath\">download</a>"
 
   local otype
-  otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
+  otype=$($GIT_BIN -C "$dir" cat-file -t "$ref:$path" 2>/dev/null)
   if [ "$otype" != "blob" ]; then
     echo "<h2>404 Not Found</h2>"
-    footer "$rel"
+    footer "$rel" 1 "$bname"
     return
   fi
 
-  # NEW: refuse to inline-render oversized blobs
+  # refuse to inline-render oversized blobs
   local size
-  size=$($GIT_BIN -C "$dir" cat-file -s "HEAD:$path" 2>/dev/null)
+  size=$($GIT_BIN -C "$dir" cat-file -s "$ref:$path" 2>/dev/null)
   if [ -z "$size" ] || [ "$size" -gt "$MAX_BLOB_SIZE" ]; then
-    echo "<p>File too large to display ($size bytes). <a href=\"/$urel/raw/$upath\">View raw</a> or <a href=\"/$urel/download/$upath\">download</a>.</p>"
-    footer "$rel"
+    echo "<p>File too large to display ($size bytes). <a href=\"$base/raw/$upath\">View raw</a> or <a href=\"$base/download/$upath\">download</a>.</p>"
+    footer "$rel" 1 "$bname"
     return
   fi
 
   case "$path" in
     *.md|*.markdown)
       echo "<div class=\"md\">"
-      $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null | render_markdown /dev/stdin
+      $GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null | render_markdown /dev/stdin
       echo "</div>"
       ;;
     *)
       echo "<pre>"
       local blob
-      blob=$($GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null)
+      blob=$($GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null)
       html_escape "$blob"
       echo "</pre>"
       ;;  
   esac
 
-  footer "$rel"
+  footer "$rel" 1 "$bname"
 }
 
 render_raw() {
-  local rel=$1 dir=$2 path=$3
+  local rel=$1 dir=$2 path=$3 ref=${4:-HEAD}
   local otype
-  otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
+  otype=$($GIT_BIN -C "$dir" cat-file -t "$ref:$path" 2>/dev/null)
   if [ "$otype" != "blob" ]; then
     render_404
     return
@@ -259,13 +302,13 @@ render_raw() {
   echo "Cache-Control: no-cache"
   echo "X-Content-Type-Options: nosniff"
   echo
-  $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null
+  $GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null
 }
 
 render_download() {
-  local rel=$1 dir=$2 path=$3
+  local rel=$1 dir=$2 path=$3 ref=${4:-HEAD}
   local otype
-  otype=$($GIT_BIN -C "$dir" cat-file -t "HEAD:$path" 2>/dev/null)
+  otype=$($GIT_BIN -C "$dir" cat-file -t "$ref:$path" 2>/dev/null)
   if [ "$otype" != "blob" ]; then
     render_404
     return
@@ -280,19 +323,19 @@ render_download() {
   echo "Cache-Control: no-cache"
   echo "X-Content-Type-Options: nosniff"
   echo
-  $GIT_BIN -C "$dir" show "HEAD:$path" 2>/dev/null
+  $GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null
 }
 
 render_tree() {
-  local rel=$1 dir=$2 path=$3
+  local rel=$1 dir=$2 path=$3 ref=${4:-HEAD} bname=$5
   send_header
-  header "$rel" "tree /$(html_escape "$path")"
-  local urel=$(url_encode "$rel")
+  header "$rel" "tree$(ref_label "$bname") /$(html_escape "$path")"
+  local base=$(ref_base "$rel" "$bname")
   echo "<ul>"
   local mode type obj name
-  local ref="HEAD"
-  [ -n "$path" ] && ref="HEAD:$path"
-  $GIT_BIN -C "$dir" ls-tree "$ref" 2>/dev/null | \
+  local treeref="$ref"
+  [ -n "$path" ] && treeref="$ref:$path"
+  $GIT_BIN -C "$dir" ls-tree "$treeref" 2>/dev/null | \
   while read -r mode type obj name; do
     local full="$name"
     [ -n "$path" ] && full="$path/$name"
@@ -300,14 +343,14 @@ render_tree() {
     local ufull=$(url_encode "$full")
     local url=""
     if [ "$type" = "tree" ]; then
-      url="/$urel/tree/$ufull"
+      url="$base/tree/$ufull"
     else
-      url="/$urel/blob/$ufull"
+      url="$base/blob/$ufull"
     fi
     echo "<li><code>$(html_escape "$type")</code> <a class=\"$(html_escape "$type")\" href=\"$url\">$ename</a></li>"
   done
   echo "</ul>"
-  footer "$rel"
+  footer "$rel" 1 "$bname"
 }
 
 render_commit() {
@@ -342,6 +385,44 @@ render_commit() {
       done
   echo "</div>"
   footer "$rel"
+}
+
+# Resolve a branch route: /repo/branch/<name...>[/<action>[/<path...>]]
+# Branch names may contain slashes, so grow the candidate name segment by
+# segment until it matches an existing branch. Git forbids one branch name
+# being a prefix (directory) of another, so at most one candidate matches.
+route_branch() {
+  local rel=$1 dir=$2
+  shift 2
+  local -a bargs=("$@")
+  if (( ${#bargs} == 0 )); then
+    render_branches "$rel" "$dir"
+    return
+  fi
+  local bname="" bsplit=0 cand="" j
+  for (( j = 1; j <= ${#bargs}; j++ )); do
+    if [ -z "$cand" ]; then cand="$bargs[j]"; else cand="$cand/$bargs[j]"; fi
+    if $GIT_BIN -C "$dir" show-ref --verify --quiet "refs/heads/$cand"; then
+      bname="$cand"
+      bsplit=$j
+      break
+    fi
+  done
+  if [ -z "$bname" ]; then
+    render_404
+    return
+  fi
+  local ref="refs/heads/$bname"
+  local -a sub=(${bargs[$((bsplit+1)),-1]})
+  case "$sub[1]" in
+    ""|summary) render_repo     "$rel" "$dir" "$ref" "$bname" ;;
+    commits)    render_commits  "$rel" "$dir" "$ref" "$bname" ;;
+    tree)       render_tree     "$rel" "$dir" "${(j:/:)sub[2,-1]}" "$ref" "$bname" ;;
+    blob)       render_blob     "$rel" "$dir" "${(j:/:)sub[2,-1]}" "$ref" "$bname" ;;
+    raw)        render_raw      "$rel" "$dir" "${(j:/:)sub[2,-1]}" "$ref" ;;
+    download)   render_download "$rel" "$dir" "${(j:/:)sub[2,-1]}" "$ref" ;;
+    *)          render_404 ;;
+  esac
 }
 
 route() {
@@ -387,6 +468,8 @@ route() {
     raw)        render_raw      "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
     download)   render_download "$repo_rel" "$dir" "${(j:/:)action[2,-1]}" ;;
     commit)     render_commit   "$repo_rel" "$dir" "$action[2]" ;;
+    branches)   render_branches "$repo_rel" "$dir" ;;
+    branch)     route_branch    "$repo_rel" "$dir" "${(@)action[2,-1]}" ;;
     *)          render_404 ;;
   esac
 }
