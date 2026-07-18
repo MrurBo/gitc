@@ -16,4 +16,4 @@ ENABLE_HTTP_CLONE=true
 GIT_REPOS_PATH=/repos              # repo path inside container
 GIT_BIN=/usr/bin/git               # bin of git
 CMARK_BIN=/usr/local/bin/cmark-gfm # bin of CMARK
-
+CHROMA_BIN=/usr/local/bin/chroma

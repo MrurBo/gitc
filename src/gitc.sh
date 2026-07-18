@@ -27,7 +27,7 @@ is_git_repo() {
   [[ -f "$dir/HEAD" && -d "$dir/objects" && -d "$dir/refs" ]]
 }
 
-html_escape() {
+html_escape() { 
   local s=$1
   s=${s//&/&amp;}
   s=${s//</&lt;}
@@ -171,6 +171,10 @@ navigation() {
   echo " | <a href=\"$base/tree\">tree</a>"
   echo " | <a href=\"/$urel/branches\">branches</a>"
   echo "</nav>"
+}
+
+render_code() {
+  $CHROMA_BIN "$@"
 }
 
 render_markdown() {
@@ -321,11 +325,10 @@ render_blob() {
       echo "</div>"
       ;;
     *)
-      echo "<pre>"
       local blob
       blob=$($GIT_BIN -C "$dir" show "$ref:$path" 2>/dev/null)
-      html_escape "$blob"
-      echo "</pre>"
+      print -- $blob| render_code --html-inline-styles --html --html-only --html-linkable-lines --html-lines --style github-dark --lexer "${path##*.}"
+      # html_escape "$blob"
       ;;  
   esac
 
