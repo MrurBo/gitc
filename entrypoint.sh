@@ -25,6 +25,6 @@ chmod 0770 "$SOCKET"
 chmod 755 -R /repos
 chown -R "$APP_USER":"$APP_USER" /repos
 
-git config --global safe.directory "*"
+git config --system --add safe.directory "*"
 
 exec nginx -g "daemon off;"
