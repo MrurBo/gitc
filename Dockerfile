@@ -10,8 +10,17 @@ RUN apk add --no-cache \
         fcgiwrap \
         spawn-fcgi \
         zsh \
-        git \
-        cmark
+        git
+
+RUN apk add --no-cache --virtual .build-deps build-base cmake git \
+    && git clone --depth 1 https://github.com/github/cmark-gfm.git /tmp/cmark-gfm \
+    && cd /tmp/cmark-gfm \
+    && mkdir build && cd build \
+    && cmake -DCMARK_TESTS=OFF -DCMARK_STATIC=OFF .. \
+    && make -j"$(nproc)" \
+    && make install \
+    && cd / && rm -rf /tmp/cmark-gfm \
+    && apk del .build-deps
 
 # nginx runs as this user by default on Alpine; fcgiwrap needs to run
 # as the same user so file permissions line up

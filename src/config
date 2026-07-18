@@ -7,7 +7,7 @@ title="gitc"
 BASE=""
 
 # dev options, dont touch unless you know what you're doing!
-GIT_REPOS_PATH=/repos    # repo path inside container
-GIT_BIN=/usr/bin/git     # bin of git
-CMARK_BIN=/usr/bin/cmark # bin of CMARK
+GIT_REPOS_PATH=/repos              # repo path inside container
+GIT_BIN=/usr/bin/git               # bin of git
+CMARK_BIN=/usr/local/bin/cmark-gfm # bin of CMARK
 
