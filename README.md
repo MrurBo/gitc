@@ -1,6 +1,6 @@
 # gitc
 
-A static git frontend.
+A static git frontend written in ZSH.
 
 ## Configuration
 
