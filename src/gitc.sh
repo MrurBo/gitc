@@ -239,9 +239,12 @@ render_branches() {
 
 render_commits() {
   local rel=$1 dir=$2 ref=${3:-HEAD} bname=$4
+  local page_num=1
 
-  local page_num=${QUERY_page:-1}
-  [[ "$page_num" =~ '^[0-9]+$' ]] || page_num=1
+  if [[ "$QUERY_STRING" =~ '(^|&)page=([0-9]+)(&|$)' ]]; then
+      page_num=${match[2]}
+  fi
+
   (( page_num < 1 )) && page_num=1
 
   local per_page=10
