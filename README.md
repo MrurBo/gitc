@@ -4,18 +4,20 @@ A static git frontend.
 
 ## Configuration
 
-In `docker-compose.yml`, you can set your path to your repositories. defaults to example repositories in `./repos`
-`src/style.css` Stylesheet for the website.
-`src/config` Configuration for the website. In here you can set your subdirectory, and title for the website.
+- **Repository path** — set in `docker-compose.yml`. Defaults to the example repositories in `./repos`.
+- **`src/style.css`** — stylesheet for the website.
+- **`src/config`** — website configuration; set your subdirectory and site title here.
 
-All configurations are live-updating.
+All configuration is live-updating — no rebuild required.
 
 ## Running
 
-`sudo docker compose up -d --build` to turn on,
-`sudo docker compose down` to turn off,
-`sudo docker compose restart` to restart.
+| Action  | Command                                  |
+| ------- | ---------------------------------------- |
+| Start   | `sudo docker compose up -d --build`      |
+| Stop    | `sudo docker compose down`               |
+| Restart | `sudo docker compose restart`            |
 
 ## Licence
 
-Licenced under [MIT Licence](/LICENCE) by MrurBo.
+Licensed under the [MIT Licence](/LICENCE) by MrurBo.
