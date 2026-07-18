@@ -155,7 +155,7 @@ footer() {
   elapsed=$(( EPOCHREALTIME - START_TIME ))
   local ms
   ms=$(( elapsed * 1000 ))
-  printf '<small>rendered by gitc @ %s in %.1f ms</small>\n' $(/bin/date +%H:%M:%S) $ms
+  printf '<small>rendered by <a href="https://git.2564.me/MrurBo/gitc.git">gitc</a> @ %s in %.1f ms</small>\n' $(/bin/date +%H:%M:%S) $ms
   echo "</footer>"
   foot
 }
