@@ -1,0 +1,16 @@
+services:
+  gitc:
+    build: .
+    image: gitc:latest
+    container_name: gitc
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - GIT_REPOS_PATH=/repos/
+    volumes:
+      - ./repos/:/repos
+      - ./src/:/var/www/cgi-bin/:ro
+
+volumes:
+  gitc-repos:

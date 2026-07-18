@@ -1,0 +1,5 @@
+#!/bin/zsh
+
+NAME="gitc"
+GIT_REPOS_PATH=/repos
+
