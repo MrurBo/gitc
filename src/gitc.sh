@@ -157,7 +157,7 @@ navigation() {
 }
 
 render_markdown() {
-  $CMARK_BIN "$@"
+  $CMARK_BIN -e table -e strikethrough -e autolink -e tasklist -e footnotes "$@"
 }
 
 render_repo() {
