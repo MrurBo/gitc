@@ -30,7 +30,7 @@ RUN mkdir -p /run/nginx /var/www/cgi-bin /home/welp/gitc/repos \
 COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY src/gitc.zsh /var/www/cgi-bin/gitc.zsh
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /var/www/cgi-bin/gitc.sh /entrypoint.sh \
+RUN chmod +x /var/www/cgi-bin/gitc.zsh /entrypoint.sh \
     && chown ${APP_USER}:${APP_USER} /var/www/cgi-bin/gitc.zsh
 EXPOSE 80
 ENTRYPOINT ["/entrypoint.sh"]
