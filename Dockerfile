@@ -28,7 +28,7 @@ ARG APP_USER=nginx
 RUN mkdir -p /run/nginx /var/www/cgi-bin /home/welp/gitc/repos \
     && chown -R ${APP_USER}:${APP_USER} /home/welp /var/www/cgi-bin
 COPY nginx.conf /etc/nginx/http.d/default.conf
-COPY src/gitc.sh /var/www/cgi-bin/gitc.sh
+COPY src/gitc.zsh /var/www/cgi-bin/gitc.zsh
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /var/www/cgi-bin/gitc.sh /entrypoint.sh \
     && chown ${APP_USER}:${APP_USER} /var/www/cgi-bin/gitc.zsh
