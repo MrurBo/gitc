@@ -31,6 +31,6 @@ COPY nginx.conf /etc/nginx/http.d/default.conf
 COPY src/gitc.sh /var/www/cgi-bin/gitc.sh
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /var/www/cgi-bin/gitc.sh /entrypoint.sh \
-    && chown ${APP_USER}:${APP_USER} /var/www/cgi-bin/gitc.sh
+    && chown ${APP_USER}:${APP_USER} /var/www/cgi-bin/gitc.zsh
 EXPOSE 80
 ENTRYPOINT ["/entrypoint.sh"]
