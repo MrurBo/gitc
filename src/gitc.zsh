@@ -211,7 +211,6 @@ render_repo() {
 
 render_404() {
   echo "Status: 404 Not Found"
-it.welp.i2p;
   echo "Content-type: text/html; charset=utf-8"
   echo "X-Content-Type-Options: nosniff"
   echo
@@ -489,9 +488,16 @@ get_domain() {
   d=${d%%,*}
   d=${d## }
   d=${d%% *}
-  # strip any :port
+  # strip any :port (also drops IPv6 brackets' contents, handled below)
   d=${d%%:*}
-  print -r -- "$d"
+  d=${d##[[]}
+  d=${(L)d}
+  # Validate: DNS hostname (letters/digits/hyphen labels, dot-separated).
+  if [[ $d =~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$' ]]; then
+    print -r -- "$d"
+  else
+    print -r -- ""
+  fi
 }
 
 route() {
