@@ -15,7 +15,8 @@
 #
 setopt NULL_GLOB
 zmodload zsh/datetime
-ROOT_DIR=/var/www/cgi-bin/
+zmodload zsh/zstat
+OOT_DIR=/var/www/cgi-bin/
 source ${ROOT_DIR}config
 
 typeset -F START_TIME=$EPOCHREALTIME
@@ -477,7 +478,6 @@ serve_git_http() {
 }
 
 route() {
-
   if [[ "$PATH_INFO" == */info/refs && "$QUERY_STRING" == *service=git-upload-pack* && "$ENABLE_HTTP_CLONE" == "true" ]] || \
      [[ "$PATH_INFO" == */git-upload-pack && "$REQUEST_METHOD" == "POST" ]]; then
     serve_git_http
