@@ -481,19 +481,11 @@ serve_git_http() {
 get_domain() {
   local d
   if [ "$HTTP_X_FROM_I2P" = "1" ]; then
-    d=$HTTP_X_FORWARDED_HOST
-  else
-    d=$HTTP_HOST
+    print -r -- "git.welp.i2p"
+    return
   fi
-  # X-Forwarded-Host may be a comma/space-separated list; take the first.
-  d=${d%%,*}
-  d=${d## }
-  d=${d%% *}
-  # strip any :port (also drops IPv6 brackets' contents, handled below)
-  d=${d%%:*}
-  d=${d##[[]}
-  d=${(L)d}
-  # Validate: DNS hostname (letters/digits/hyphen labels, dot-separated).
+  d=$HTTP_HOST
+  d=${d%%,*}; d=${d## }; d=${d%% *}; d=${d%%:*}; d=${d##[[]}; d=${(L)d}
   if [[ $d =~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$' ]]; then
     print -r -- "$d"
   else
