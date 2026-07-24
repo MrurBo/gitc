@@ -190,6 +190,7 @@ render_repo() {
     local clone_url="http://$(get_domain)${BASE}/$(url_encode "$rel")"
     echo "<small>Clone this repo: <code>git clone $(html_escape "$clone_url")</code></small>"
   fi
+  echo "<!-- I2P=[$HTTP_X_FROM_I2P] XFH=[$HTTP_X_FORWARDED_HOST] HOST=[$HTTP_HOST] -->"
   if [ -f "$dir/description" ]; then
     local desc
     desc=$(<"$dir/description")
