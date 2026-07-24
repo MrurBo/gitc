@@ -123,6 +123,7 @@ page_head() {
   echo "<html>"
   echo "<head>"
   echo "<meta charset=\"utf-8\">"
+  echo "<meta name=\"color-scheme\" content=\"dark\""
   echo "<style>"
   echo "$(<${ROOT_DIR}style.css)"
   echo "</style>"
