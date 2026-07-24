@@ -16,7 +16,7 @@
 setopt NULL_GLOB
 zmodload zsh/datetime
 zmodload zsh/zstat
-OOT_DIR=/var/www/cgi-bin/
+ROOT_DIR=/var/www/cgi-bin/
 source ${ROOT_DIR}config
 
 typeset -F START_TIME=$EPOCHREALTIME
@@ -187,7 +187,7 @@ render_repo() {
   send_header
   header "$rel" "index$(ref_label "$bname")"
   if [ "$ENABLE_HTTP_CLONE" = "true" ]; then
-    local clone_url="http://${HTTP_HOST}${BASE}/$(url_encode "$rel")"
+    local clone_url="http://$(get_domain)${BASE}/$(url_encode "$rel")"
     echo "<small>Clone this repo: <code>git clone $(html_escape "$clone_url")</code></small>"
   fi
   if [ -f "$dir/description" ]; then
@@ -211,6 +211,7 @@ render_repo() {
 
 render_404() {
   echo "Status: 404 Not Found"
+it.welp.i2p;
   echo "Content-type: text/html; charset=utf-8"
   echo "X-Content-Type-Options: nosniff"
   echo
@@ -475,6 +476,22 @@ serve_git_http() {
   export GIT_PROJECT_ROOT="$GIT_REPOS_PATH"
   export GIT_HTTP_EXPORT_ALL=1
   exec "$GIT_BIN" http-backend
+}
+
+get_domain() {
+  local d
+  if [ "$HTTP_X_FROM_I2P" = "1" ]; then
+    d=$HTTP_X_FORWARDED_HOST
+  else
+    d=$HTTP_HOST
+  fi
+  # X-Forwarded-Host may be a comma/space-separated list; take the first.
+  d=${d%%,*}
+  d=${d## }
+  d=${d%% *}
+  # strip any :port
+  d=${d%%:*}
+  print -r -- "$d"
 }
 
 route() {
