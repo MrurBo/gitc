@@ -133,6 +133,7 @@ page_head() {
 }
 
 foot() {
+  echo '<a class="trap" href="https://welp.2564.me/tarpitv2/" rel="nofollow" aria-hidden="true" tabindex="-1">Do not follow this link</a>' # my own website, temporary
   echo "</body></html>"
 }
 
@@ -473,7 +474,7 @@ route_branch() {
   esac
 }
 
-serve_git_http() {
+serve_git_http() {gfm
   export GIT_PROJECT_ROOT="$GIT_REPOS_PATH"
   export GIT_HTTP_EXPORT_ALL=1
   exec "$GIT_BIN" http-backend
