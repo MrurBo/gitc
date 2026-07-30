@@ -1,0 +1,25 @@
+# Equivalent of the Dockerfile — run with: bastille template TARGET path/to/template
+# Base: FreeBSD 14.x thick jail
+
+PKG nginx fcgiwrap spawn-fcgi zsh git cmark-gfm chroma-highlight
+
+# --- Directories & user ---
+# nginx spawns as user "www" on FreeBSD (not "nginx")
+CMD mkdir -p /var/run/nginx /var/www/cgi-bin /repos
+CMD chown -R www:www /var/www/cgi-bin /repos
+
+# --- Application files ---
+CP nginx.conf /usr/local/etc/nginx/nginx.conf
+CP src/gitc.zsh /var/www/cgi-bin/gitc.zsh
+CP entrypoint.sh /usr/local/bin/entrypoint.sh
+CMD chmod +x /var/www/cgi-bin/gitc.zsh /usr/local/bin/entrypoint.sh
+CMD chown www:www /var/www/cgi-bin/gitc.zsh
+
+# --- Services ---
+SYSRC nginx_enable=YES
+SYSRC fcgiwrap_enable=YES
+SYSRC fcgiwrap_user=www
+SYSRC gitc_enable=YES
+
+SERVICE fcgiwrap start
+SERVICE nginx start
